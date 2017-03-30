@@ -19,7 +19,8 @@ class MySQLClass():
     def one_target_row(self):
         '''get one target row need to be built'''
         self.conn.commit()
-        self.cursor.execute("SELECT * FROM build_information WHERE status='' ORDER BY buildid")
+        self.cursor.execute("SELECT * FROM build_information \
+                             WHERE status='' OR status='1' ORDER BY buildid")
         return self.cursor.fetchone()
 
     def set_build_start_flag(self, build_id):

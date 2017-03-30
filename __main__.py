@@ -10,7 +10,7 @@ from MyLog import Logger
 
 MAIN_PATH = os.getcwd() + '\\'
 ROOT_PATH = 'g:\\AutoMakeTest\\'
-WORK_PATH = ROOT_PATH + 'AutoBuildDir\\'
+WORK_PATH = ROOT_PATH + 'AutoBuildDir1\\'
 BUILD_PATH = WORK_PATH + '_BUILD\\'
 FINAL_PATH = WORK_PATH + '_FINAL\\'
 MYSQL_HOST = '127.0.0.1'
@@ -24,6 +24,8 @@ def download_svn(url, ver, target_path):
     '''download_svn'''
     if os.path.exists(target_path):
         LOG.info('del {work_dir}'.format(work_dir=target_path))
+        res = os.system('rd /s /q ' + target_path)
+        print('rd res:', res)
         res = os.system('rd /s /q ' + target_path)
         print('rd res:', res)
     LOG.info('dowmloading from {svn}'.format(svn=url))
@@ -89,8 +91,8 @@ def do_compile():
         return True
 
 
-def complete():
-    '''creat update file and zip'''
+def prepare_out_files():
+    '''creat update files, prepare dirs'''
     try:
         for file in [BUILD_PATH + 'rtos.bin', BUILD_PATH + 'rtos.elf', BUILD_PATH + 'rtos.map']:
             shutil.copy(file, FINAL_PATH)
@@ -125,6 +127,7 @@ def complete():
                 shutil.copy(file, 'out\\调试程序')
         shutil.copy(FINAL_PATH + 'FLASH.bin', 'out\\烧片程序')
         shutil.copy(WORK_PATH + 'tools\\zk\\update.sp4', 'out\\升级程序\\字库的U盘升级文件')
+        shutil.copy(FINAL_PATH + 'README.txt', 'out\\')
         os.chdir(MAIN_PATH)
     except (PermissionError, OSError):
         LOG.record_except()
@@ -153,7 +156,52 @@ def complete_flash_test():
     else:
         LOG.error('sp4 file not found!')
         return False
+    return True
 
+
+def create_readme_and_ini(data_row):
+    '''create readme.txt and filecmdjoint.ini'''
+    readme_file = '--FILE INFO--\n'
+    for key in data_row:
+        readme_file += str(key) + ':\n' + str(data_row[key]) + '\n\n'
+    filecmdjoint_file = \
+    '''[cfg]
+    #######U盘升级配置#######
+    ShowVer = {ShowVer}
+    BspVer = {BspVer}
+    KernelVer = {KernelVer}
+    MeterVer = {MeterVer}
+    OemVer = {OemVer}
+
+    #######文件拼接配置#######
+    Files = 2
+    Blank = 255
+    OutFile = ./FLASH.bin
+    [f1]
+    FileName = {boot_file}
+    FileMaxSize = {boot_file_max_size}
+    [f2]
+    FileName = rtos.bin
+    FileMaxSize = {app_file_max_size}\n'''\
+    .format(ShowVer=data_row['show_version'], BspVer=data_row['bsp_version'],
+            KernelVer=data_row['os_version'], MeterVer=data_row['meter_version'],
+            OemVer=data_row['oem'], boot_file=data_row['oem'],
+            boot_file_max_size=data_row['oem'], app_file_max_size=data_row['oem'])
+    try:
+        file = open(FINAL_PATH + 'README.txt', 'w')
+        file.write(readme_file)
+        file.close()
+        file = open(FINAL_PATH + 'FileCmdJoint.ini', 'w')
+        file.write(filecmdjoint_file)
+        file.close()
+    except IOError:
+        LOG.record_except()
+        return False
+    return True
+
+
+def create_zip():
+    '''create zip'''
     os.chdir('out\\')
     # shutil.make_archive('out', 'tar', 'out\\')  # 这个库会在zip根目录下多生成一个.目录
     zip_file = zipfile.ZipFile('..\\out.zip', 'w', zipfile.ZIP_DEFLATED)
@@ -162,8 +210,6 @@ def complete_flash_test():
             zip_file.write(os.path.join(dirpath, filename))
     zip_file.close()
     os.chdir(MAIN_PATH)
-
-
     return True
 
 
@@ -185,6 +231,8 @@ def auto_build():
                 ver = data_row['svn_version']
                 build_id = data_row['buildid']
                 LOG.info('auto build id: {id}'.format(id=build_id))
+                create_readme_and_ini(data_row)
+                break
             else:
                 time.sleep(5)
                 continue
@@ -206,7 +254,11 @@ def auto_build():
             LOG.error('copy file error')
             DATABASE.set_build_end_flag(build_id, False)
             continue
-        # os.chdir(WORK_PATH)
+        if create_readme_and_ini(data_row) is False:
+            LOG.error('create readme error')
+            DATABASE.set_build_end_flag(build_id, False)
+            continue
+
         if build_makefile('') is False:
             LOG.error('build makefile error')
             DATABASE.set_build_end_flag(build_id, False)
@@ -215,8 +267,8 @@ def auto_build():
             LOG.error('compile error')
             DATABASE.set_build_end_flag(build_id, False)
             continue
-        if complete() is False:
-            LOG.error('complete error')
+        if prepare_out_files() is False:
+            LOG.error('prepare out files error')
             DATABASE.set_build_end_flag(build_id, False)
             continue
 
@@ -230,6 +282,11 @@ def auto_build():
             continue
         if complete_flash_test() is False:
             LOG.error('complete flash test error')
+            DATABASE.set_build_end_flag(build_id, False)
+            continue
+
+        if create_zip() is False:
+            LOG.error('create zip error')
             DATABASE.set_build_end_flag(build_id, False)
             continue
 

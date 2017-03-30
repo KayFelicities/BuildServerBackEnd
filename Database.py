@@ -10,22 +10,23 @@ class MySQLClass():
         self.conn = None
         self.cursor = None
 
-    def connect(self):
+    def connect(self, database, user, passwd):
         '''connect MySQL'''
         self.conn = pymysql.connect(host=self.hostip, port=self.hostport,
-                                    user='root', passwd='', db='kay', charset='utf8')
+                                    user=user, passwd=passwd, db=database, charset='utf8')
         self.cursor = self.conn.cursor(cursor=pymysql.cursors.DictCursor)
 
     def one_target_row(self):
         '''get one target row need to be built'''
         self.conn.commit()
         self.cursor.execute("SELECT * FROM build_information \
-                             WHERE status='' OR status='1' ORDER BY buildid")
+                             WHERE status='waiting' ORDER BY build_id")
         return self.cursor.fetchone()
 
     def set_build_start_flag(self, build_id):
         '''set me when starting auto build'''
-        query = "UPDATE build_information SET status='1', start_time=NOW() WHERE buildid='{id}'"\
+        query = "UPDATE build_information \
+                 SET status='runing', start_time=NOW() WHERE build_id='{id}'"\
                 .format(id=build_id)
         self.cursor.execute(query)
         self.conn.commit()
@@ -33,8 +34,22 @@ class MySQLClass():
     def set_build_end_flag(self, build_id, is_successful):
         '''set me when ending auto build'''
         self.cursor.execute("UPDATE build_information \
-                    SET status='{res}', finsh_time=NOW() WHERE buildid='{id}'"\
-                .format(res='2' if is_successful else '3', id=build_id))
+                    SET status='{res}', finsh_time=NOW() WHERE build_id='{id}'"\
+                .format(res='ok' if is_successful else 'error', id=build_id))
+        self.conn.commit()
+
+    def set_zip_url(self, build_id, url):
+        '''set zip url for downloading'''
+        self.cursor.execute("UPDATE build_information \
+                    SET out_zip_url='{url}', finsh_time=NOW() WHERE build_id='{id}'"\
+                .format(url=url, id=build_id))
+        self.conn.commit()
+
+    def set_err_log_url(self, build_id, url):
+        '''set error log url for downloading'''
+        self.cursor.execute("UPDATE build_information \
+                    SET err_log_url='{url}', finsh_time=NOW() WHERE build_id='{id}'"\
+                .format(url=url, id=build_id))
         self.conn.commit()
 
     def close_connect(self):

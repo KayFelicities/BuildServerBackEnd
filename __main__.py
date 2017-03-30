@@ -10,11 +10,17 @@ from MyLog import Logger
 
 MAIN_PATH = os.getcwd() + '\\'
 ROOT_PATH = 'g:\\AutoMakeTest\\'
-WORK_PATH = ROOT_PATH + 'AutoBuildDir1\\'
+WORK_PATH = ROOT_PATH + 'AutoBuildDir2\\'
 BUILD_PATH = WORK_PATH + '_BUILD\\'
 FINAL_PATH = WORK_PATH + '_FINAL\\'
+OUTFILES_PATH = 'D:\\soft\\xampp-win32-5.5.28-0-VC11\\xampp\\htdocs\\outfiles\\'
+WEB_OUTFILES_PATH = 'http://127.0.0.1/outfiles/'
+
 MYSQL_HOST = '127.0.0.1'
 MYSQL_PORT = 3306
+MYSQL_DATABASE = 'buildserver'
+MYSQL_USER = 'root'
+MYSQL_PASSWD = ''
 
 LOG = Logger('g:\\AutoMakeTest\\log.txt')
 DATABASE = MySQLClass(MYSQL_HOST, MYSQL_PORT)
@@ -26,6 +32,8 @@ def download_svn(url, ver, target_path):
         LOG.info('del {work_dir}'.format(work_dir=target_path))
         res = os.system('rd /s /q ' + target_path)
         print('rd res:', res)
+    if os.path.exists(target_path):
+        LOG.info('del {work_dir}'.format(work_dir=target_path))
         res = os.system('rd /s /q ' + target_path)
         print('rd res:', res)
     LOG.info('dowmloading from {svn}'.format(svn=url))
@@ -82,7 +90,7 @@ def do_compile():
     LOG.info('compiling...')
     start_time = time.time()
     os.system('cs-make clean --directory={build_path} >nul'.format(build_path=BUILD_PATH))
-    if os.system('cs-make all -j8 --directory={build_path} 1>nul 2>{final_path}error.txt'\
+    if os.system('cs-make all -j8 --directory={build_path} 1>nul 2>{final_path}error.log'\
                  .format(build_path=BUILD_PATH, final_path=FINAL_PATH)) != 0:
         return False
     else:
@@ -183,10 +191,10 @@ def create_readme_and_ini(data_row):
     [f2]
     FileName = rtos.bin
     FileMaxSize = {app_file_max_size}\n'''\
-    .format(ShowVer=data_row['show_version'], BspVer=data_row['bsp_version'],
-            KernelVer=data_row['os_version'], MeterVer=data_row['meter_version'],
-            OemVer=data_row['oem'], boot_file=data_row['oem'],
-            boot_file_max_size=data_row['oem'], app_file_max_size=data_row['oem'])
+    .format(ShowVer=data_row['show_ver'], BspVer=data_row['bsp_ver'],
+            KernelVer=data_row['kernel_ver'], MeterVer=data_row['meter_ver'],
+            OemVer=data_row['oem_ver'], boot_file=data_row['boot_type'],
+            boot_file_max_size=data_row['boot_size'], app_file_max_size=data_row['app_size'])
     try:
         file = open(FINAL_PATH + 'README.txt', 'w')
         file.write(readme_file)
@@ -204,7 +212,7 @@ def create_zip():
     '''create zip'''
     os.chdir('out\\')
     # shutil.make_archive('out', 'tar', 'out\\')  # 这个库会在zip根目录下多生成一个.目录
-    zip_file = zipfile.ZipFile('..\\out.zip', 'w', zipfile.ZIP_DEFLATED)
+    zip_file = zipfile.ZipFile(FINAL_PATH + 'out.zip', 'w', zipfile.ZIP_DEFLATED)
     for dirpath, _, filenames in os.walk('.'):
         for filename in filenames:
             zip_file.write(os.path.join(dirpath, filename))
@@ -213,10 +221,25 @@ def create_zip():
     return True
 
 
+def list_out_files(build_id, zip_name='out'):
+    '''list zip and logs to database'''
+    out_files_path = OUTFILES_PATH + str(build_id) + '\\'
+    if os.path.exists(out_files_path):
+        shutil.rmtree(out_files_path)
+    os.makedirs(out_files_path)
+
+    shutil.copy(FINAL_PATH + 'out.zip',
+                out_files_path + zip_name + '.zip')
+    shutil.copy(FINAL_PATH + 'error.log', out_files_path)
+
+    web_out_file_path = WEB_OUTFILES_PATH + str(build_id) + '/'
+    DATABASE.set_zip_url(build_id, web_out_file_path + zip_name + '.zip')
+    DATABASE.set_err_log_url(build_id, web_out_file_path + 'error.log')
+
 def auto_build():
     '''start auto build'''
     try:
-        DATABASE.connect()
+        DATABASE.connect(MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWD)
     except (PermissionError, OSError):
         LOG.record_except()
         LOG.error('connect database error!')
@@ -228,11 +251,12 @@ def auto_build():
             data_row = DATABASE.one_target_row()
             if data_row:
                 url = data_row['svn_url']
-                ver = data_row['svn_version']
-                build_id = data_row['buildid']
+                ver = data_row['svn_ver']
+                build_id = data_row['build_id']
                 LOG.info('auto build id: {id}'.format(id=build_id))
-                create_readme_and_ini(data_row)
-                break
+                # list_out_files(build_id, zip_name=data_row['release_ver'])
+                # create_readme_and_ini(data_row)
+                # break
             else:
                 time.sleep(5)
                 continue
@@ -287,6 +311,11 @@ def auto_build():
 
         if create_zip() is False:
             LOG.error('create zip error')
+            DATABASE.set_build_end_flag(build_id, False)
+            continue
+
+        if list_out_files(build_id, zip_name=data_row['release_ver']) is False:
+            LOG.error('list_out_files error')
             DATABASE.set_build_end_flag(build_id, False)
             continue
 

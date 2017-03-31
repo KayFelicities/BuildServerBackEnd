@@ -14,7 +14,7 @@ WORK_PATH = ROOT_PATH + 'AutoBuildDir2\\'
 BUILD_PATH = WORK_PATH + '_BUILD\\'
 FINAL_PATH = WORK_PATH + '_FINAL\\'
 OUTFILES_PATH = 'D:\\soft\\xampp-win32-5.5.28-0-VC11\\xampp\\htdocs\\outfiles\\'
-WEB_OUTFILES_PATH = 'http://127.0.0.1/outfiles/'
+WEB_OUTFILES_PATH = '../outfiles/'
 
 MYSQL_HOST = '127.0.0.1'
 MYSQL_PORT = 3306
@@ -171,7 +171,7 @@ def create_readme_and_ini(data_row):
     '''create readme.txt and filecmdjoint.ini'''
     readme_file = '--FILE INFO--\n'
     for key in data_row:
-        readme_file += str(key) + ':\n' + str(data_row[key]) + '\n\n'
+        readme_file += str(key) + ':\n' + '{content}\n\n'.format(content=data_row[key])
     filecmdjoint_file = \
     '''[cfg]
     #######U盘升级配置#######
@@ -196,12 +196,10 @@ def create_readme_and_ini(data_row):
             OemVer=data_row['oem_ver'], boot_file=data_row['boot_type'],
             boot_file_max_size=data_row['boot_size'], app_file_max_size=data_row['app_size'])
     try:
-        file = open(FINAL_PATH + 'README.txt', 'w')
-        file.write(readme_file)
-        file.close()
-        file = open(FINAL_PATH + 'FileCmdJoint.ini', 'w')
-        file.write(filecmdjoint_file)
-        file.close()
+        with open(FINAL_PATH + 'README.txt', 'w', encoding='utf-8') as file:
+            file.write(readme_file)
+        with open(FINAL_PATH + 'FileCmdJoint.ini', 'w', encoding='utf-8') as file:
+            file.write(filecmdjoint_file)
     except IOError:
         LOG.record_except()
         return False
@@ -223,18 +221,22 @@ def create_zip():
 
 def list_out_files(build_id, zip_name='out'):
     '''list zip and logs to database'''
-    out_files_path = OUTFILES_PATH + str(build_id) + '\\'
-    if os.path.exists(out_files_path):
-        shutil.rmtree(out_files_path)
-    os.makedirs(out_files_path)
+    out_files_path = OUTFILES_PATH + '{id:06d}\\'.format(id=build_id)
+    try:
+        if os.path.exists(out_files_path):
+            shutil.rmtree(out_files_path)
+        os.makedirs(out_files_path)
 
-    shutil.copy(FINAL_PATH + 'out.zip',
-                out_files_path + zip_name + '.zip')
-    shutil.copy(FINAL_PATH + 'error.log', out_files_path)
-
-    web_out_file_path = WEB_OUTFILES_PATH + str(build_id) + '/'
+        shutil.copy(FINAL_PATH + 'out.zip',
+                    out_files_path + zip_name + '.zip')
+        shutil.copy(FINAL_PATH + 'error.log', out_files_path)
+    except (PermissionError, OSError):
+        LOG.record_except()
+        return False
+    web_out_file_path = WEB_OUTFILES_PATH + '{id:06d}/'.format(id=build_id)
     DATABASE.set_zip_url(build_id, web_out_file_path + zip_name + '.zip')
     DATABASE.set_err_log_url(build_id, web_out_file_path + 'error.log')
+    return True
 
 def auto_build():
     '''start auto build'''
@@ -254,7 +256,7 @@ def auto_build():
                 ver = data_row['svn_ver']
                 build_id = data_row['build_id']
                 LOG.info('auto build id: {id}'.format(id=build_id))
-                # list_out_files(build_id, zip_name=data_row['release_ver'])
+                list_out_files(build_id, zip_name=data_row['release_ver'])
                 # create_readme_and_ini(data_row)
                 # break
             else:
@@ -264,62 +266,63 @@ def auto_build():
             LOG.record_except()
             return False
 
-        DATABASE.set_build_start_flag(build_id)
-
+        DATABASE.set_build_status(build_id, 'svn downloading')
         if download_svn(url, ver, WORK_PATH) is False:
             LOG.error('download svn error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'svn err')
             continue
         if create_dirs() is False:
             LOG.error('create dirs error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'create dir err')
             continue
         if copy_file() is False:
             LOG.error('copy file error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'copy file err')
             continue
         if create_readme_and_ini(data_row) is False:
             LOG.error('create readme error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'create ini err')
             continue
 
+        DATABASE.set_build_status(build_id, 'compiling1')
         if build_makefile('') is False:
             LOG.error('build makefile error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'automake1 err')
             continue
         if do_compile() is False:
             LOG.error('compile error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'compile1 err')
             continue
         if prepare_out_files() is False:
             LOG.error('prepare out files error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'copy1 err')
             continue
 
+        DATABASE.set_build_status(build_id, 'compiling2')
         if build_makefile('-DINCLUDE_FLASH_TEST') is False:
             LOG.error('build makefile error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'automake2 err')
             continue
         if do_compile() is False:
             LOG.error('compile error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'compile2 err')
             continue
         if complete_flash_test() is False:
             LOG.error('complete flash test error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'copy2 err')
             continue
 
         if create_zip() is False:
             LOG.error('create zip error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'create zip err')
             continue
 
         if list_out_files(build_id, zip_name=data_row['release_ver']) is False:
             LOG.error('list_out_files error')
-            DATABASE.set_build_end_flag(build_id, False)
+            DATABASE.set_build_status(build_id, 'create url err')
             continue
 
-        DATABASE.set_build_end_flag(build_id, True)
+        DATABASE.set_build_status(build_id, 'ok')
         LOG.info('auto build done')
 
 if __name__ == '__main__':

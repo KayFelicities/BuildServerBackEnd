@@ -23,19 +23,12 @@ class MySQLClass():
                              WHERE status='waiting' ORDER BY build_id")
         return self.cursor.fetchone()
 
-    def set_build_start_flag(self, build_id):
+    def set_build_status(self, build_id, status):
         '''set me when starting auto build'''
         query = "UPDATE build_information \
-                 SET status='runing', start_time=NOW() WHERE build_id='{id}'"\
-                .format(id=build_id)
+                 SET status='{status}', start_time=NOW() WHERE build_id='{id}'"\
+                .format(status=status, id=build_id)
         self.cursor.execute(query)
-        self.conn.commit()
-
-    def set_build_end_flag(self, build_id, is_successful):
-        '''set me when ending auto build'''
-        self.cursor.execute("UPDATE build_information \
-                    SET status='{res}', finsh_time=NOW() WHERE build_id='{id}'"\
-                .format(res='ok' if is_successful else 'error', id=build_id))
         self.conn.commit()
 
     def set_zip_url(self, build_id, url):

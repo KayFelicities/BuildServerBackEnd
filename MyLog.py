@@ -1,26 +1,31 @@
 '''log class'''
 import logging
+import config
 
 class Logger:
     '''logger class'''
-    def __init__(self, path, cmd_level=logging.INFO, file_level=logging.INFO):
+    def __init__(self, name, errlog_path, log_path=config.RUNNING_LOG, cmd_level=logging.INFO,
+                 file_level=logging.INFO, errlog_level=logging.ERROR):
         '''init'''
-        self.logger = logging.getLogger(path)
+        self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
-        fmt = logging.Formatter(
-            '[%(asctime)s] [%(levelname)s] %(message)s', '%Y-%m-%d %H:%M:%S')
+        fmt = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', '%Y-%m-%d %H:%M:%S')
 
-        # 设置CMD日志
         cmd_log = logging.StreamHandler()
         cmd_log.setFormatter(fmt)
         cmd_log.setLevel(cmd_level)
 
-        # 设置文件日志
-        file_log = logging.FileHandler(path)
+        file_log = logging.FileHandler(log_path)
         file_log.setFormatter(fmt)
         file_log.setLevel(file_level)
+
+        err_log = logging.FileHandler(errlog_path)
+        err_log.setFormatter(fmt)
+        err_log.setLevel(errlog_level)
+
         self.logger.addHandler(cmd_log)
         self.logger.addHandler(file_log)
+        self.logger.addHandler(err_log)
 
     def debug(self, message):
         '''debug'''

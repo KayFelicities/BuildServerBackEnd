@@ -256,7 +256,7 @@ def auto_build():
                 ver = data_row['svn_ver']
                 build_id = data_row['build_id']
                 LOG.info('auto build id: {id}'.format(id=build_id))
-                list_out_files(build_id, zip_name=data_row['release_ver'])
+                # list_out_files(build_id, zip_name=data_row['release_ver'])
                 # create_readme_and_ini(data_row)
                 # break
             else:

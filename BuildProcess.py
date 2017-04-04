@@ -6,8 +6,6 @@ import time
 import config
 from MyLog import Logger
 
-
-
 BUILD_PROC_LOG = Logger('build', config.RUNNING_ERRLOG)
 
 class BuildProc():
@@ -15,11 +13,11 @@ class BuildProc():
     def __init__(self, data_row, work_path, outfiles_path):
         '''init'''
         self.work_path = work_path
-        self.build_path = work_path + config.BUILD_DIR + '\\'
-        self.final_path = work_path + config.FINAL_DIR + '\\'
-        self.outfiles_path = outfiles_path
+        self.build_path = os.path.join(work_path, config.BUILD_DIR)
+        self.final_path = os.path.join(work_path, config.FINAL_DIR)
         self.data = data_row
-        self.show_files_path = self.outfiles_path + '{id:06d}\\'.format(id=self.data['build_id'])
+        self.show_files_path = os.path.join(outfiles_path,
+                                            '{id:06d}'.format(id=self.data['build_id']))
 
     def create_show_files_dir(self):
         '''create show files dir'''
@@ -35,7 +33,7 @@ class BuildProc():
     def svn_download(self):
         '''download_svn'''
         for _ in range(2):  # del twice to avoid root dir exist
-            if os.path.exists(self.work_path):
+            if os.path.isdir(self.work_path):
                 BUILD_PROC_LOG.info('del ' + self.work_path)
                 res = os.system('rd /s /q ' + self.work_path)
                 print('rd res:', res)
@@ -48,16 +46,17 @@ class BuildProc():
     def create_work_env(self):
         '''create environment'''
         try:
-            if os.path.exists(self.final_path):
+            if os.path.isdir(self.final_path):
                 shutil.rmtree(self.final_path)
             os.makedirs(self.final_path)
-            if os.path.exists(self.final_path + 'out\\'):
-                shutil.rmtree(self.final_path + 'out\\')
-            for c_dir in ['out\\升级程序\\字库的U盘升级文件', 'out\\升级程序\\应用的U盘升级文件',
-                          'out\\烧片程序', 'out\\调试程序', 'out\\Flash寿命测试的U盘升级文件']:
-                os.makedirs(self.final_path + c_dir)
-            shutil.copy(config.MAIN_PATH + 'copys\\AutoMake.exe', self.work_path)
-            shutil.copy(config.MAIN_PATH + 'copys\\FileCmdJoint.exe', self.final_path)
+
+            if os.path.isdir(os.path.join(self.final_path, 'out')):
+                shutil.rmtree(os.path.join(self.final_path, 'out'))
+            for c_dir in [r'out\升级程序\字库的U盘升级文件', r'out\升级程序\应用的U盘升级文件',
+                          r'out\烧片程序', r'out\调试程序', r'out\Flash寿命测试的U盘升级文件']:
+                os.makedirs(os.path.join(self.final_path, c_dir))
+            shutil.copy(os.path.join(config.MAIN_PATH, r'copys\AutoMake.exe'), self.work_path)
+            shutil.copy(os.path.join(config.MAIN_PATH, r'copys\FileCmdJoint.exe'), self.final_path)
         except (PermissionError, OSError):
             BUILD_PROC_LOG.record_except()
             raise
@@ -91,9 +90,10 @@ class BuildProc():
                 OemVer=self.data['oem_ver'], boot_file=self.data['boot_type'],
                 boot_file_max_size=self.data['boot_size'], app_file_max_size=self.data['app_size'])
         try:
-            with open(self.final_path + 'README.txt', 'w', encoding='utf-8') as file:
+            with open(os.path.join(self.final_path, 'README.txt'), 'w', encoding='utf-8') as file:
                 file.write(readme_file)
-            with open(self.final_path + 'FileCmdJoint.ini', 'w', encoding='utf-8') as file:
+            with open(os.path.join(self.final_path, 'FileCmdJoint.ini'),
+                      'w', encoding='utf-8') as file:
                 file.write(filecmdjoint_file)
         except IOError:
             BUILD_PROC_LOG.record_except()
@@ -103,7 +103,9 @@ class BuildProc():
         '''build makefile'''
         BUILD_PROC_LOG.info('build makefile...')
         os.chdir(self.work_path)
-        if os.system('AutoMake.exe ' + build_args) != 0:
+        res = os.system('AutoMake.exe ' + build_args)
+        os.chdir(config.MAIN_PATH)
+        if res != 0:
             return False
         else:
             return True
@@ -123,41 +125,50 @@ class BuildProc():
         BUILD_PROC_LOG.info('normal compile ok, time use: {tm:.2f} seconds'.format(tm=time_use))
 
         try:
-            for file in [self.build_path + 'rtos.bin',
-                         self.build_path + 'rtos.elf',
-                         self.build_path + 'rtos.map']:
+            for file in [os.path.join(self.build_path, 'rtos.bin'),
+                         os.path.join(self.build_path, 'rtos.elf'),
+                         os.path.join(self.build_path, 'rtos.map')]:
                 shutil.copy(file, self.final_path)
-            shutil.copytree(self.work_path + 'boot\\', self.final_path + 'boot\\')
+            shutil.copytree(os.path.join(self.work_path, 'boot'),
+                            os.path.join(self.final_path, 'boot'))
         except (PermissionError, OSError):
             BUILD_PROC_LOG.record_except()
             raise
 
         os.chdir(self.final_path)
-        if os.system('FileCmdJoint.exe') != 0:
+        res = os.system('FileCmdJoint.exe')
+        os.chdir(config.MAIN_PATH)
+        if res != 0:
             BUILD_PROC_LOG.error('FileCmdJoint error')
             raise Exception
 
         try:
-            for file in os.listdir():
+            for file in os.listdir(self.final_path):
                 if os.path.splitext(file)[1] == '.sp4':
                     BUILD_PROC_LOG.info('copy ' + file)
-                    shutil.copy(file, self.final_path + 'out\\升级程序\\应用的U盘升级文件')
+                    shutil.copy(os.path.join(self.final_path, file),
+                                os.path.join(self.final_path, r'out\升级程序\应用的U盘升级文件'))
                     break
             else:
                 BUILD_PROC_LOG.error('sp4 file not found!')
                 raise Exception
-            for file in os.listdir():
+            for file in os.listdir(self.final_path):
                 if os.path.splitext(file)[0] == 'rtos':
                     BUILD_PROC_LOG.info('copy ' + file)
-                    shutil.copy(file, self.final_path + 'out\\调试程序')
-            shutil.copy(self.final_path + 'FLASH.bin', 'out\\烧片程序')
-            shutil.copy(self.work_path + 'tools\\zk\\update.sp4', 'out\\升级程序\\字库的U盘升级文件')
-            shutil.copy(self.final_path + 'README.txt', 'out\\')
+                    shutil.copy(os.path.join(self.final_path, file),
+                                os.path.join(self.final_path, r'out\调试程序'))
+            shutil.copy(os.path.join(self.final_path, 'FLASH.bin'),
+                        os.path.join(self.final_path, r'out\烧片程序'))
+            shutil.copy(os.path.join(self.work_path, r'tools\zk\update.sp4'),
+                        os.path.join(self.final_path, r'out\升级程序\字库的U盘升级文件'))
+            shutil.copy(os.path.join(self.final_path, 'README.txt'),
+                        os.path.join(self.final_path, 'out'))
         except (PermissionError, OSError):
             BUILD_PROC_LOG.record_except()
             raise
 
         # Flash test build
+        start_time = time.time()
         self.__build_makefile('-DINCLUDE_FLASH_TEST')
         BUILD_PROC_LOG.info('cs-make clean...')
         os.system('cs-make clean --directory={build_path} >nul'.format(build_path=self.build_path))
@@ -170,19 +181,22 @@ class BuildProc():
         BUILD_PROC_LOG.info('Flash test compile ok, time use: {tm:.2f} seconds'.format(tm=time_use))
 
         try:
-            shutil.copy(self.build_path + 'rtos.bin', self.final_path)
+            shutil.copy(os.path.join(self.build_path, 'rtos.bin'), self.final_path)
         except (PermissionError, OSError):
             BUILD_PROC_LOG.record_except()
             raise
 
         os.chdir(self.final_path)
-        if os.system('FileCmdJoint.exe') != 0:
+        res = os.system('FileCmdJoint.exe')
+        os.chdir(config.MAIN_PATH)
+        if res != 0:
             BUILD_PROC_LOG.error('FileCmdJoint error')
             raise Exception
-        for file in os.listdir():
+        for file in os.listdir(self.final_path):
             if os.path.splitext(file)[1] == '.sp4':
                 BUILD_PROC_LOG.info('copy ' + file)
-                shutil.copy(file, self.final_path + 'out\\Flash寿命测试的U盘升级文件\\update.sp4')
+                shutil.copy(os.path.join(self.final_path, file),
+                            os.path.join(self.final_path, r'out\Flash寿命测试的U盘升级文件\update.sp4'))
                 break
         else:
             BUILD_PROC_LOG.error('sp4 file not found!')
@@ -190,25 +204,32 @@ class BuildProc():
 
     def do_pack(self):
         '''create zip'''
-        os.chdir(self.final_path + 'out\\')
+        os.chdir(os.path.join(self.final_path, 'out'))
         # shutil.make_archive('out', 'tar', 'out\\')  # 这个库会在zip根目录下多生成一个.目录
-        zip_file = zipfile.ZipFile(self.final_path + 'out.zip', 'w', zipfile.ZIP_DEFLATED)
+        zip_file = zipfile.ZipFile(os.path.join(self.final_path, 'out.zip'),
+                                   'w', zipfile.ZIP_DEFLATED)
         for dirpath, _, filenames in os.walk('.'):
             for filename in filenames:
                 zip_file.write(os.path.join(dirpath, filename))
         zip_file.close()
-
+        os.chdir(config.MAIN_PATH)
         try:
-            shutil.copy(self.final_path + 'out.zip',
-                        self.show_files_path + self.data['release_ver'] + '.zip')
+            shutil.copy(os.path.join(self.final_path, 'out.zip'),
+                        os.path.join(self.show_files_path, self.data['release_ver'] + '.zip'))
         except (PermissionError, OSError):
             BUILD_PROC_LOG.record_except()
             raise
 
     def show_errlog(self):
         '''copy errlog'''
-        shutil.copy(config.RUNNING_ERRLOG, self.show_files_path + config.SHOW_ERRLOG_NAME)
+        shutil.copy(config.RUNNING_ERRLOG,
+                    os.path.join(self.show_files_path, config.SHOW_ERRLOG_NAME))
         with open(config.COMPILE_ERRLOG) as file:
             compile_err_text = file.read()
-        with open(self.show_files_path + config.SHOW_ERRLOG_NAME, 'a+') as file:
+        with open(os.path.join(self.show_files_path, config.SHOW_ERRLOG_NAME), 'a+') as file:
             file.write(compile_err_text)
+
+    def final(self):
+        '''clean files'''
+        os.chdir(config.MAIN_PATH)
+        # todo: del files

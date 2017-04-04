@@ -20,7 +20,7 @@ class MySQLClass():
         '''get one target row need to be built'''
         self.conn.commit()
         self.cursor.execute("SELECT * FROM build_information \
-                             WHERE status='waiting' ORDER BY build_id")
+                             WHERE status!='ok' AND status!='error' ORDER BY build_id")
         return self.cursor.fetchone()
 
     def set_build_status(self, build_id, status):
@@ -43,6 +43,13 @@ class MySQLClass():
         self.cursor.execute("UPDATE build_information \
                     SET err_log_url='{url}', finsh_time=NOW() WHERE build_id='{id}'"\
                 .format(url=url, id=build_id))
+        self.conn.commit()
+
+    def set_err_count(self, build_id, err_count):
+        '''set error count'''
+        self.cursor.execute("UPDATE build_information \
+                    SET err_count='{count}' WHERE build_id='{id}'"\
+                .format(count=err_count, id=build_id))
         self.conn.commit()
 
     def close_connect(self):

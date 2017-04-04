@@ -1,5 +1,6 @@
 '''auto make test'''
 import time
+import os
 import config
 from BuildProcess import BuildProc
 from MyLog import Logger
@@ -14,14 +15,20 @@ def auto_build():
     '''start auto build'''
     try:
         DATABASE.connect(config.MYSQL_DATABASE, config.MYSQL_USER, config.MYSQL_PASSWD)
-    except (PermissionError, OSError):
+    except Exception:
         LOG.record_except()
         LOG.error('connect database error!')
         input()
         exit(1)
 
     while True:
-        data_row = DATABASE.one_target_row()
+        try:
+            data_row = DATABASE.one_target_row()
+        except Exception:
+            LOG.record_except()
+            LOG.error('connect database error!')
+            time.sleep(300)
+            continue
         if not data_row:
             time.sleep(5)
             continue
@@ -34,8 +41,9 @@ def auto_build():
             with open(config.COMPILE_ERRLOG, 'w') as file:
                 file.write('\nID-{id} compile error:\n'.format(id=build_id))
 
+            LOG.info('#'*7 + ' AUTO BUILD ' + '#'*7)
             LOG.info('starting build id {id}'.format(id=build_id))
-            build_proc = BuildProc(data_row, config.ROOT_PATH + config.WORK_DIR + '\\'
+            build_proc = BuildProc(data_row, os.path.join(config.ROOT_PATH, config.WORK_DIR)
                                    , config.OUTFILES_PATH)
 
             build_proc.create_show_files_dir()
@@ -60,10 +68,14 @@ def auto_build():
             build_proc.do_pack()
             LOG.info('pack ok')
 
+            build_proc.final()
+            LOG.info('auto build done')
+
             DATABASE.set_zip_url(build_id, web_out_file_path + data_row['release_ver'] + '.zip')
             DATABASE.set_build_status(build_id, 'ok')
 
         except Exception:
+            build_proc.final()
             build_proc.show_errlog()
             DATABASE.set_build_status(build_id, 'error')
             DATABASE.set_err_log_url(build_id, web_out_file_path + config.SHOW_ERRLOG_NAME)

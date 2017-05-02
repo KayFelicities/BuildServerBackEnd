@@ -129,8 +129,8 @@ class BuildProc():
                          os.path.join(self.build_path, 'rtos.elf'),
                          os.path.join(self.build_path, 'rtos.map')]:
                 shutil.copy(file, self.final_path)
-            shutil.copytree(os.path.join(self.work_path, 'boot'),
-                            os.path.join(self.final_path, 'boot'))
+            shutil.copy(os.path.join(config.MAIN_PATH, 'copys', self.data['boot_type'])
+                        , self.final_path)
         except (PermissionError, OSError):
             BUILD_PROC_LOG.record_except()
             raise

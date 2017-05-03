@@ -72,6 +72,7 @@ def auto_build():
             LOG.info('auto build done')
 
             DATABASE.set_zip_url(build_id, web_out_file_path + data_row['release_ver'] + '.zip')
+            DATABASE.set_err_log_url(build_id, '')
             DATABASE.set_build_status(build_id, 'ok')
 
         except Exception:

@@ -8,7 +8,7 @@ ROOT_PATH = r'g:\AutoMakeTest'
 WORK_DIR = 'AutoBuildDir2'
 BUILD_DIR = '_BUILD'
 FINAL_DIR = '_FINAL'
-OUTFILES_PATH = r'D:\soft\xampp-win32-5.5.28-0-VC11\xampp\htdocs\outfiles'
+OUTFILES_PATH = r'D:\soft\xampp-win32-5.5.28-0-VC11\xampp\htdocs\BuildServer\outfiles'
 WEB_OUTFILES_PATH = '../outfiles/'
 
 RUNNING_ERRLOG = os.path.join(ROOT_PATH, 'running_errlog.txt')

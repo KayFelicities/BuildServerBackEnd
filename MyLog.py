@@ -15,11 +15,11 @@ class Logger:
         cmd_log.setFormatter(fmt)
         cmd_log.setLevel(cmd_level)
 
-        file_log = logging.FileHandler(log_path)
+        file_log = logging.FileHandler(log_path, encoding='utf-8')
         file_log.setFormatter(fmt)
         file_log.setLevel(file_level)
 
-        err_log = logging.FileHandler(errlog_path)
+        err_log = logging.FileHandler(errlog_path, encoding='utf-8')
         err_log.setFormatter(fmt)
         err_log.setLevel(errlog_level)
 

@@ -159,8 +159,8 @@ class BuildProc():
                                 os.path.join(self.final_path, r'out\调试程序'))
             shutil.copy(os.path.join(self.final_path, 'FLASH.bin'),
                         os.path.join(self.final_path, r'out\烧片程序'))
-            shutil.copy(os.path.join(self.work_path, r'tools\zk\update.sp4'),
-                        os.path.join(self.final_path, r'out\升级程序\字库的U盘升级文件'))
+            shutil.copy(os.path.join(config.MAIN_PATH, r'copys\zk.sp4'),
+                        os.path.join(self.final_path, r'out\升级程序\字库的U盘升级文件\update.sp4'))
             shutil.copy(os.path.join(self.final_path, 'README.txt'),
                         os.path.join(self.final_path, 'out'))
         except (PermissionError, OSError):

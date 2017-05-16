@@ -158,7 +158,7 @@ class BuildProc():
                     shutil.copy(os.path.join(self.final_path, file),
                                 os.path.join(self.final_path, r'out\调试程序'))
             shutil.copy(os.path.join(self.final_path, 'FLASH.bin'),
-                        os.path.join(self.final_path, r'out\烧片程序'))
+                        os.path.join(self.final_path, r'out\烧片程序\%s.bin'%self.data['release_ver']))
             shutil.copy(os.path.join(config.MAIN_PATH, r'copys\zk.sp4'),
                         os.path.join(self.final_path, r'out\升级程序\字库的U盘升级文件\update.sp4'))
             shutil.copy(os.path.join(self.final_path, 'README.txt'),

@@ -70,16 +70,12 @@ def auto_build():
 
             build_proc.final()
             LOG.info('auto build done')
-
-            DATABASE.set_zip_url(build_id, web_out_file_path + data_row['release_ver'] + '.zip')
-            DATABASE.set_err_log_url(build_id, '')
             DATABASE.set_build_status(build_id, 'ok')
 
         except Exception:
             build_proc.final()
             build_proc.show_errlog()
             DATABASE.set_build_status(build_id, 'error')
-            DATABASE.set_err_log_url(build_id, web_out_file_path + config.SHOW_ERRLOG_NAME)
 
 if __name__ == '__main__':
     auto_build()

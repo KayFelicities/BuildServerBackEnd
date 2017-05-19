@@ -1,4 +1,5 @@
 '''log class'''
+import os
 import logging
 import config
 
@@ -15,6 +16,8 @@ class Logger:
         cmd_log.setFormatter(fmt)
         cmd_log.setLevel(cmd_level)
 
+        if not os.path.isdir(os.path.split(log_path)[0]):
+            os.makedirs(os.path.split(log_path)[0])
         file_log = logging.FileHandler(log_path, encoding='utf-8')
         file_log.setFormatter(fmt)
         file_log.setLevel(file_level)

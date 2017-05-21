@@ -23,7 +23,7 @@ class MySQLClass():
         '''get one target row need to be built'''
         self.conn.commit()
         self.cursor.execute("SELECT * FROM build_information \
-                             WHERE status!='ok' AND status!='error' ORDER BY build_id")
+                    WHERE status!='ok' AND status!='error' AND status!='del' ORDER BY build_id")
         return self.cursor.fetchone()
 
 

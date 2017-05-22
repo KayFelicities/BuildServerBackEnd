@@ -224,7 +224,7 @@ class BuildProc():
         '''copy errlog'''
         shutil.copy(config.RUNNING_ERRLOG,
                     os.path.join(self.show_files_path, config.SHOW_ERRLOG_NAME))
-        with open(config.COMPILE_ERRLOG) as file:
+        with open(config.COMPILE_ERRLOG, encoding='gb2312', errors='ignore') as file:
             compile_err_text = file.read()
         with open(os.path.join(self.show_files_path, config.SHOW_ERRLOG_NAME), 'a+') as file:
             file.write(compile_err_text)

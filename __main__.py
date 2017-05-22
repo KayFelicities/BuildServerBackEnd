@@ -41,7 +41,7 @@ def auto_build():
             with open(config.COMPILE_ERRLOG, 'w') as file:
                 file.write('\nID-{id} compile error:\n'.format(id=build_id))
 
-            LOG.info('#'*7 + ' AUTO BUILD ' + '#'*7)
+            LOG.info('\n\n#'*7 + ' AUTO BUILD ' + '#'*7)
             LOG.info('starting build id {id}'.format(id=build_id))
             build_proc = BuildProc(data_row, os.path.join(config.ROOT_PATH, config.WORK_DIR)
                                    , config.OUTFILES_PATH)

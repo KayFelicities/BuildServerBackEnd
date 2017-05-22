@@ -41,12 +41,16 @@ def auto_build():
             with open(config.COMPILE_ERRLOG, 'w') as file:
                 file.write('\nID-{id} compile error:\n'.format(id=build_id))
 
-            LOG.info('\n\n#'*7 + ' AUTO BUILD ' + '#'*7)
+            LOG.info('#'*26)
+            LOG.info('#'*7 + ' AUTO BUILD ' + '#'*7)
+            LOG.info('#'*26)
             LOG.info('starting build id {id}'.format(id=build_id))
             build_proc = BuildProc(data_row, os.path.join(config.ROOT_PATH, config.WORK_DIR)
                                    , config.OUTFILES_PATH)
 
             build_proc.create_show_files_dir()
+
+            build_start_time = time.time()
 
             LOG.info('svn downloading...')
             DATABASE.set_build_status(build_id, 'svn downloading')
@@ -69,7 +73,8 @@ def auto_build():
             LOG.info('pack ok')
 
             build_proc.final()
-            LOG.info('auto build done')
+            LOG.info('ID{id} auto build done, time: {tm:.2f} seconds'\
+                        .format(id=build_id, tm=time.time() - build_start_time))
             DATABASE.set_build_status(build_id, 'ok')
 
         except Exception:

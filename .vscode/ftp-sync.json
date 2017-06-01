@@ -14,7 +14,8 @@
     "ignore": [
         "\\.vscode",
         "\\.git",
-        "\\.DS_Store"
+        "\\.DS_Store",
+        "\\__pycache__"
     ],
     "generatedFiles": {
         "uploadOnSave": false,

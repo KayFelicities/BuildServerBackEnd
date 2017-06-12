@@ -90,7 +90,7 @@ class BuildProc():
                 OemVer=self.data['oem_ver'], boot_file=self.data['boot_type'],
                 boot_file_max_size=self.data['boot_size'], app_file_max_size=self.data['app_size'])
         try:
-            with open(os.path.join(self.final_path, 'README.txt'), 'w', encoding='utf-8') as file:
+            with open(os.path.join(self.final_path, 'README.txt'), 'w', encoding='gb2312') as file:
                 file.write(readme_file)
             with open(os.path.join(self.final_path, 'FileCmdJoint.ini'),
                       'w', encoding='utf-8') as file:
